@@ -1,0 +1,33 @@
+# syntax=docker/dockerfile:1
+### 1) Base deps layer
+FROM node:20-alpine AS deps
+WORKDIR /app
+# Copy only lockfile + package json for better caching
+COPY frontend/package*.json ./
+# If you use pnpm or yarn, swap the installer accordingly
+RUN npm ci
+
+### 2) Build layer
+FROM node:20-alpine AS build
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY frontend/ ./
+# If you use env vars for build, set them here via ARG/ENV
+RUN npm run build
+
+### 3) Runtime layer
+FROM node:20-alpine AS runner
+WORKDIR /app
+ENV NODE_ENV=production
+# Install only prod deps for a slimmer runtime
+COPY frontend/package*.json ./
+RUN npm ci --omit=dev
+
+# Copy built app & public assets
+COPY --from=build /app/.next ./.next
+COPY --from=build /app/public ./public
+
+# If your app expects any runtime config files, copy them too
+
+EXPOSE 4000
+CMD ["npx", "next", "start", "-p", "4000"]

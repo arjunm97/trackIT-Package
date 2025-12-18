@@ -1,0 +1,22 @@
+# syntax=docker/dockerfile:1
+FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    PIP_NO_CACHE_DIR=1
+
+WORKDIR /app
+
+# Install deps first (better caching)
+COPY backend/requirements.txt .
+RUN pip install -r requirements.txt
+
+# Copy backend source
+COPY backend/ ./
+
+EXPOSE 8090
+
+# If your ASGI app instance is named `app` inside api_service.py:
+# (change to the right module if different)
+CMD ["uvicorn", "api_service:app", "--host", "0.0.0.0", "--port", "8090"]
