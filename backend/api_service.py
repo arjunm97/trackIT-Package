@@ -69,7 +69,7 @@ def get_summary(request: FileRequest):
         filename = request.filename
         provider = request.provider
         
-        if provider == "AWS Bedrock":
+        if provider == "bedrock":
             print('Running AWS Model')
             try:
                 notebook_filename = SUM_LOGS_DIR + "/" + filename

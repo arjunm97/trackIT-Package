@@ -59,7 +59,9 @@ class local_ollama:
                 "prompt": prompt,
                 "stream": False,
                 "options": {
-                    "temperature": 0.2
+                    "temperature": 0.2,
+                    "num_predict": 350,   
+                    "num_ctx": 2048 
                 }
             },
             timeout=300,
@@ -105,7 +107,7 @@ class local_ollama:
         Now produce the FINAL report.
         """.strip()
 
-    
+    """
     def driver(self):
         text = self.read_file()
         chunks = self.chunk_text(text)
@@ -129,4 +131,42 @@ class local_ollama:
         
         combined = "\n\n".join(partials)
         final_prompt = self.prompt_for_final(combined)
+        return self.ollama_generate(final_prompt)
+    """
+    def driver(self):
+        text = self.read_file()
+        chunks = self.chunk_text(text)
+
+       
+        partials = []
+        for i, chunk in enumerate(chunks, start=1):
+            p = self.prompt_for_chunk(chunk, i, len(chunks))
+            partials.append(self.ollama_generate(p))
+
+       
+        def reduce_batch(batch, batch_id, total_batches):
+            joined = "\n\n".join(batch)
+            prompt = f"""
+            You are combining PARTIAL summaries ({batch_id}/{total_batches}).
+
+            Condense them into ONE concise technical summary:
+            - key actions
+            - results
+            - errors
+            - progress
+
+            TEXT:
+            {joined}
+            """
+            return self.ollama_generate(prompt)
+
+        BATCH_SIZE = 3  
+        reduced = []
+        for i in range(0, len(partials), BATCH_SIZE):
+            batch = partials[i:i+BATCH_SIZE]
+            reduced.append(reduce_batch(batch, i//BATCH_SIZE + 1,
+                                    (len(partials)+BATCH_SIZE-1)//BATCH_SIZE))
+
+    
+        final_prompt = self.prompt_for_final("\n\n".join(reduced))
         return self.ollama_generate(final_prompt)
